@@ -14,7 +14,8 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  GripVertical
+  GripVertical,
+  Type as TextIcon
 } from "lucide-react";
 import { 
   DndContext, 
@@ -35,7 +36,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImageData, TextOverlay } from "@/types";
+import { CompositionItem, ImageData, TextBlock, TextOverlay } from "@/types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -44,9 +45,10 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function MainApp() {
-  const [images, setImages] = useState<ImageData[]>([]);
+  const [items, setItems] = useState<CompositionItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [editingText, setEditingText] = useState<{ imageId: string, text: TextOverlay } | null>(null);
+  const [editingOverlay, setEditingOverlay] = useState<{ imageId: string, text: TextOverlay } | null>(null);
+  const [editingBlock, setEditingBlock] = useState<TextBlock | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,80 +63,93 @@ export default function MainApp() {
     if (!files) return;
     const newImages: ImageData[] = Array.from(files).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
+      type: 'image',
       file,
       previewUrl: URL.createObjectURL(file),
       isVisible: true,
       texts: [],
     }));
-    setImages((prev) => [...prev, ...newImages]);
+    setItems((prev) => [...prev, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const addTextBlock = () => {
+    const newBlock: TextBlock = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'text',
+      content: "Type your message here...",
+      fontSize: 24,
+      color: "#ffffff",
+      backgroundColor: "#1e293b",
+      isVisible: true,
+    };
+    setItems((prev) => [...prev, newBlock]);
+    setEditingBlock(newBlock);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setImages((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+      setItems((prev) => {
+        const oldIndex = prev.findIndex((i) => i.id === active.id);
+        const newIndex = prev.findIndex((i) => i.id === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
       });
     }
   };
 
-  const removeImage = (id: string) => {
-    setImages((prev) => {
-      const filtered = prev.filter((img) => img.id !== id);
-      const target = prev.find(img => img.id === id);
-      if (target) URL.revokeObjectURL(target.previewUrl);
-      return filtered;
+  const removeItem = (id: string) => {
+    setItems((prev) => {
+      const target = prev.find(item => item.id === id);
+      if (target && target.type === 'image') URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((item) => item.id !== id);
     });
   };
 
   const toggleVisibility = (id: string) => {
-    setImages((prev) =>
-      prev.map((img) => (img.id === id ? { ...img, isVisible: !img.isVisible } : img))
-    );
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item)));
   };
 
-  const addText = (imageId: string) => {
-    const newText: TextOverlay = {
+  // Overlay management for images
+  const addTextOverlay = (imageId: string) => {
+    const newOverlay: TextOverlay = {
       id: Math.random().toString(36).substr(2, 9),
-      content: "Input Text",
+      content: "Photo Caption",
       fontSize: 24,
       color: "#ffffff",
       opacity: 1,
       position: { x: 50, y: 50 },
     };
-    setImages((prev) =>
-      prev.map((img) => img.id === imageId ? { ...img, texts: [...img.texts, newText] } : img)
-    );
-    setEditingText({ imageId, text: newText });
+    setItems((prev) => prev.map((item) => 
+      (item.id === imageId && item.type === 'image') ? { ...item, texts: [...item.texts, newOverlay] } : item
+    ));
+    setEditingOverlay({ imageId, text: newOverlay });
   };
 
-  const updateText = (imageId: string, textId: string, updates: Partial<TextOverlay>) => {
-    setImages((prev) =>
-      prev.map((img) =>
-        img.id === imageId
-          ? { ...img, texts: img.texts.map((t) => (t.id === textId ? { ...t, ...updates } : t)) }
-          : img
-      )
-    );
-    if (editingText && editingText.text.id === textId) {
-      setEditingText(prev => prev ? { ...prev, text: { ...prev.text, ...updates } } : null);
-    }
+  const updateTextOverlay = (imageId: string, textId: string, updates: Partial<TextOverlay>) => {
+    setItems((prev) => prev.map((item) => 
+      (item.id === imageId && item.type === 'image') ? { 
+        ...item, 
+        texts: item.texts.map(t => t.id === textId ? { ...t, ...updates } : t) 
+      } : item
+    ));
   };
 
-  const removeText = (imageId: string, textId: string) => {
-    setImages((prev) =>
-      prev.map((img) =>
-        img.id === imageId ? { ...img, texts: img.texts.filter((t) => t.id !== textId) } : img
-      )
-    );
-    if (editingText && editingText.text.id === textId) setEditingText(null);
+  const removeTextOverlay = (imageId: string, textId: string) => {
+    setItems((prev) => prev.map((item) => 
+      (item.id === imageId && item.type === 'image') ? { ...item, texts: item.texts.filter(t => t.id !== textId) } : item
+    ));
+    if (editingOverlay?.text.id === textId) setEditingOverlay(null);
+  };
+
+  // Text block management
+  const updateTextBlock = (id: string, updates: Partial<TextBlock>) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+    if (editingBlock?.id === id) setEditingBlock(prev => prev ? { ...prev, ...updates } : null);
   };
 
   const generatePdf = async () => {
-    if (images.length === 0) return;
+    if (items.length === 0) return;
     setIsGenerating(true);
     try {
       const [ { default: jsPDF }, { default: html2canvas } ] = await Promise.all([
@@ -142,12 +157,12 @@ export default function MainApp() {
         import('html2canvas')
       ]);
       const pdf = new jsPDF("p", "mm", "a4");
-      const visibleImages = images.filter(img => img.isVisible);
-      for (let i = 0; i < visibleImages.length; i++) {
-        const img = visibleImages[i];
-        const element = document.getElementById(`image-container-${img.id}`);
+      const visibleItems = items.filter(i => i.isVisible);
+      for (let i = 0; i < visibleItems.length; i++) {
+        const item = visibleItems[i];
+        const element = document.getElementById(`item-container-${item.id}`);
         if (!element) continue;
-        const controls = element.querySelector('.image-controls');
+        const controls = element.querySelector('.item-controls');
         if (controls) (controls as HTMLElement).style.opacity = '0';
         const canvas = await html2canvas(element, { useCORS: true, scale: 2, backgroundColor: null });
         if (controls) (controls as HTMLElement).style.opacity = '1';
@@ -170,25 +185,29 @@ export default function MainApp() {
 
   return (
     <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-6 bg-background">
+      {/* Header */}
       <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border">
         <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
-          Image to PDF
+          PDF Composer
         </h1>
         <div className="flex gap-2">
-          {images.length > 0 && (
+          {items.length > 0 && (
             <button
-              onClick={() => { if(confirm("Clear all?")) { images.forEach(img => URL.revokeObjectURL(img.previewUrl)); setImages([]); } }}
+              onClick={() => { if(confirm("Clear all?")) { items.forEach(i => i.type === 'image' && URL.revokeObjectURL(i.previewUrl)); setItems([]); } }}
               className="p-2 text-red-500 hover:bg-red-500/10 rounded-full"
             >
               <Trash2 size={20} />
             </button>
           )}
-          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 bg-accent rounded-full text-sm">
-            <Plus size={18} /> Add
+          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 bg-accent rounded-full text-xs">
+            <Plus size={16} /> Photo
+          </button>
+          <button onClick={addTextBlock} className="flex items-center gap-2 px-3 py-2 bg-accent rounded-full text-xs">
+            <TextIcon size={16} /> Text
           </button>
           <button
             onClick={generatePdf}
-            disabled={images.length === 0 || isGenerating}
+            disabled={items.length === 0 || isGenerating}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
           >
             {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={18} />}
@@ -198,39 +217,38 @@ export default function MainApp() {
         <input type="file" multiple accept="image/jpeg,image/png" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
       </div>
 
-      {images.length === 0 && (
+      {items.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center -mt-10 gap-8 text-center px-4">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-24 h-24 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary shadow-inner">
-            <ImageIcon size={48} />
+            <TextIcon size={48} />
           </motion.div>
           <div className="space-y-3">
-            <h2 className="text-2xl font-bold tracking-tight">Image Composer</h2>
-            <p className="text-muted-foreground leading-relaxed">Create PDFs with custom text overlays.</p>
+            <h2 className="text-2xl font-bold tracking-tight">Gift Your Story</h2>
+            <p className="text-muted-foreground leading-relaxed">Combine photos and messages into a beautiful PDF.</p>
           </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full max-w-xs px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-2xl active:scale-95 transition-all"
-          >
-            Select Images
-          </button>
+          <div className="flex gap-4">
+            <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl">Add Photos</button>
+            <button onClick={addTextBlock} className="px-6 py-3 bg-accent rounded-2xl font-bold">Add Message</button>
+          </div>
         </div>
       )}
 
       <div className="flex-1 overflow-y-auto pb-20">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={images.map((img) => img.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-6">
               <AnimatePresence>
-                {images.map((img) => (
-                  <SortableImageItem
-                    key={img.id}
-                    img={img}
-                    removeImage={removeImage}
+                {items.map((item) => (
+                  <SortableItem
+                    key={item.id}
+                    item={item}
+                    removeItem={removeItem}
                     toggleVisibility={toggleVisibility}
-                    addText={addText}
-                    updateText={updateText}
-                    removeText={removeText}
-                    setEditingText={setEditingText}
+                    addTextOverlay={addTextOverlay}
+                    updateTextOverlay={updateTextOverlay}
+                    removeTextOverlay={removeTextOverlay}
+                    setEditingOverlay={setEditingOverlay}
+                    setEditingBlock={setEditingBlock}
                   />
                 ))}
               </AnimatePresence>
@@ -239,31 +257,75 @@ export default function MainApp() {
         </DndContext>
       </div>
 
-      {editingText && (
+      {/* Overlays Editor */}
+      {editingOverlay && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="bg-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-4">
-                <h3 className="text-lg font-bold">Edit Text</h3>
-                <button onClick={() => setEditingText(null)} className="p-2"><X size={20} /></button>
+                <h3 className="text-lg font-bold">Edit Caption</h3>
+                <button onClick={() => setEditingOverlay(null)} className="p-2"><X size={20} /></button>
               </div>
               <div className="space-y-4">
                 <input
                   type="text"
-                  value={editingText.text.content}
-                  onChange={(e) => updateText(editingText.imageId, editingText.text.id, { content: e.target.value })}
-                  className="w-full bg-accent px-4 py-3 rounded-xl"
-                  placeholder="Type here..."
+                  value={editingOverlay.text.content}
+                  onChange={(e) => updateTextOverlay(editingOverlay.imageId, editingOverlay.text.id, { content: e.target.value })}
+                  className="w-full bg-accent px-4 py-3 rounded-xl focus:outline-none"
+                  placeholder="Caption here..."
+                  autoFocus
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <input type="range" min="8" max="48" value={editingText.text.fontSize} onChange={(e) => updateText(editingText.imageId, editingText.text.id, { fontSize: parseInt(e.target.value) })} className="w-full" />
-                  <input type="color" value={editingText.text.color} onChange={(e) => updateText(editingText.imageId, editingText.text.id, { color: e.target.value })} className="w-10 h-10" />
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Size</label>
+                    <input type="range" min="12" max="64" value={editingOverlay.text.fontSize} onChange={(e) => updateTextOverlay(editingOverlay.imageId, editingOverlay.text.id, { fontSize: parseInt(e.target.value) })} className="w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Color</label>
+                    <input type="color" value={editingOverlay.text.color} onChange={(e) => updateTextOverlay(editingOverlay.imageId, editingOverlay.text.id, { color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" />
+                  </div>
                 </div>
-                <button onClick={() => removeText(editingText.imageId, editingText.text.id)} className="w-full py-3 text-red-400 font-medium border border-red-400/20 rounded-xl">Delete Text</button>
+                <button onClick={() => removeTextOverlay(editingOverlay.imageId, editingOverlay.text.id)} className="w-full py-3 text-red-400 font-bold bg-red-400/10 rounded-xl">Delete Caption</button>
               </div>
             </div>
             <div className="p-4 bg-accent/50 flex justify-end">
-              <button onClick={() => setEditingText(null)} className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-bold">Done</button>
+              <button onClick={() => setEditingOverlay(null)} className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-bold">Done</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Block Editor */}
+      {editingBlock && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="bg-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <h3 className="text-lg font-bold">Edit Message</h3>
+                <button onClick={() => setEditingBlock(null)} className="p-2"><X size={20} /></button>
+              </div>
+              <div className="space-y-4">
+                <textarea
+                  value={editingBlock.content}
+                  onChange={(e) => updateTextBlock(editingBlock.id, { content: e.target.value })}
+                  className="w-full bg-accent px-4 py-3 rounded-xl focus:outline-none min-h-[120px]"
+                  placeholder="Your message..."
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Text Color</label>
+                    <input type="color" value={editingBlock.color} onChange={(e) => updateTextBlock(editingBlock.id, { color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Background</label>
+                    <input type="color" value={editingBlock.backgroundColor} onChange={(e) => updateTextBlock(editingBlock.id, { backgroundColor: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-accent/50 flex justify-end">
+              <button onClick={() => setEditingBlock(null)} className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-bold">Done</button>
             </div>
           </motion.div>
         </div>
@@ -272,81 +334,66 @@ export default function MainApp() {
   );
 }
 
-function SortableImageItem({ img, removeImage, toggleVisibility, addText, updateText, removeText, setEditingText }: any) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img.id });
+function SortableItem({ item, removeItem, toggleVisibility, addTextOverlay, updateTextOverlay, removeTextOverlay, setEditingOverlay, setEditingBlock }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 1, opacity: isDragging ? 0.5 : 1 };
   
   return (
-    <motion.div 
-      ref={setNodeRef} 
-      style={style} 
-      layout 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, scale: 0.95 }} 
-      className={cn(
-        "relative rounded-3xl overflow-hidden shadow-xl border border-border bg-card flex flex-col",
-        !img.isVisible && "opacity-60 grayscale"
+    <motion.div ref={setNodeRef} style={style} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className={cn("relative rounded-3xl overflow-hidden shadow-xl border border-border bg-card flex flex-col transition-opacity", !item.isVisible && "opacity-60 grayscale")}>
+      
+      {item.type === 'image' ? (
+        <>
+          <div id={`item-container-${item.id}`} className="relative bg-black min-h-[200px] flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.previewUrl} alt="element" className="max-w-full h-auto object-contain block" draggable={false} />
+            {item.texts.map((text: any) => (
+              <DraggableOverlay key={text.id} text={text} imageId={item.id} updateText={updateTextOverlay} setEditingOverlay={setEditingOverlay} />
+            ))}
+          </div>
+          <div className="flex items-center justify-between p-3 bg-accent/20 border-t border-border/50">
+            <div className="flex items-center gap-1">
+              <div {...attributes} {...listeners} className="p-2 text-muted-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded-lg">
+                <GripVertical size={20} />
+              </div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Move</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => addTextOverlay(item.id)} className="flex items-center gap-1 px-3 py-2 bg-primary/10 text-primary rounded-xl font-bold text-xs"><Type size={16} />Caption</button>
+              <button onClick={() => toggleVisibility(item.id)} className="p-2">{item.isVisible ? <Eye size={18} /> : <EyeOff size={18} />}</button>
+              <button onClick={() => removeItem(item.id)} className="p-2 text-red-400"><Trash2 size={18} /></button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div 
+            id={`item-container-${item.id}`} 
+            className="p-12 flex items-center justify-center min-h-[160px] text-center"
+            style={{ backgroundColor: item.backgroundColor, color: item.color }}
+            onClick={() => setEditingBlock(item)}
+          >
+            <div style={{ fontSize: `${item.fontSize}px`, fontWeight: '500', lineHeight: '1.4' }}>{item.content}</div>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-accent/20 border-t border-border/50">
+            <div className="flex items-center gap-1">
+              <div {...attributes} {...listeners} className="p-2 text-muted-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded-lg">
+                <GripVertical size={20} />
+              </div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Move Message</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setEditingBlock(item)} className="p-2 text-primary"><Settings size={18} /></button>
+              <button onClick={() => toggleVisibility(item.id)} className="p-2">{item.isVisible ? <Eye size={18} /> : <EyeOff size={18} />}</button>
+              <button onClick={() => removeItem(item.id)} className="p-2 text-red-400"><Trash2 size={18} /></button>
+            </div>
+          </div>
+        </>
       )}
-    >
-      {/* Image Container */}
-      <div id={`image-container-${img.id}`} className="relative bg-black min-h-[200px] flex items-center justify-center overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={img.previewUrl} alt="element" className="max-w-full h-auto object-contain block" draggable={false} />
-        {img.texts.map((text: any) => (
-          <DraggableText key={text.id} text={text} imageId={img.id} updateText={updateText} setEditingText={setEditingText} />
-        ))}
-        {!img.isVisible && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
-            <span className="bg-black/60 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm">
-              Hidden from PDF
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Persistent Bottom Bar */}
-      <div className="flex items-center justify-between p-3 bg-accent/20 border-t border-border/50">
-        <div className="flex items-center gap-1">
-          <div {...attributes} {...listeners} className="p-2 text-muted-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded-lg">
-            <GripVertical size={20} />
-          </div>
-          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">
-            Reorder
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => addText(img.id)} 
-            className="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-xl font-bold text-xs hover:bg-primary/20 transition-colors"
-          >
-            <Type size={16} />
-            <span>Text</span>
-          </button>
-          <div className="w-[1px] h-4 bg-border mx-1" />
-          <button 
-             onClick={() => toggleVisibility(img.id)} 
-             className={cn(
-               "p-2 rounded-xl transition-colors",
-               img.isVisible ? "text-muted-foreground hover:bg-accent" : "text-primary bg-primary/10"
-             )}
-          >
-            {img.isVisible ? <Eye size={18} /> : <EyeOff size={18} />}
-          </button>
-          <button 
-            onClick={() => removeImage(img.id)} 
-            className="p-2 text-red-400 hover:bg-red-400/10 rounded-xl transition-colors"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
-      </div>
     </motion.div>
   );
 }
 
-function DraggableText({ text, imageId, updateText, setEditingText }: any) {
+function DraggableOverlay({ text, imageId, updateText, setEditingOverlay }: any) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const onDragEnd = (_: unknown, info: any) => {
     const parent = nodeRef.current?.parentElement;
@@ -356,7 +403,7 @@ function DraggableText({ text, imageId, updateText, setEditingText }: any) {
   };
   return (
     <motion.div ref={nodeRef} drag dragMomentum={false} onDragEnd={onDragEnd} className="absolute cursor-move p-2 rounded z-10" style={{ left: `${text.position.x}%`, top: `${text.position.y}%`, transform: "translate(-50%, -50%)" }}>
-      <div onClick={() => setEditingText({ imageId, text })} style={{ fontSize: `${text.fontSize}px`, color: text.color, opacity: text.opacity, fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)", textAlign: "center" }}>
+      <div onClick={() => setEditingOverlay({ imageId, text })} style={{ fontSize: `${text.fontSize}px`, color: text.color, opacity: text.opacity, fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)", textAlign: "center" }}>
         {text.content}
       </div>
     </motion.div>
