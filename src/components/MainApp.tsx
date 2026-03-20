@@ -275,19 +275,73 @@ export default function MainApp() {
 function SortableImageItem({ img, removeImage, toggleVisibility, addText, updateText, removeText, setEditingText }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 1, opacity: isDragging ? 0.5 : 1 };
+  
   return (
-    <motion.div ref={setNodeRef} style={style} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className={cn("relative rounded-3xl overflow-hidden shadow-xl border border-border group", !img.isVisible && "opacity-40 grayscale")}>
+    <motion.div 
+      ref={setNodeRef} 
+      style={style} 
+      layout 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, scale: 0.95 }} 
+      className={cn(
+        "relative rounded-3xl overflow-hidden shadow-xl border border-border bg-card flex flex-col",
+        !img.isVisible && "opacity-60 grayscale"
+      )}
+    >
+      {/* Image Container */}
       <div id={`image-container-${img.id}`} className="relative bg-black min-h-[200px] flex items-center justify-center overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img.previewUrl} alt="element" className="max-w-full h-auto object-contain block" draggable={false} />
-        {img.texts.map((text: any) => (<DraggableText key={text.id} text={text} imageId={img.id} updateText={updateText} setEditingText={setEditingText} />))}
+        {img.texts.map((text: any) => (
+          <DraggableText key={text.id} text={text} imageId={img.id} updateText={updateText} setEditingText={setEditingText} />
+        ))}
+        {!img.isVisible && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+            <span className="bg-black/60 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm">
+              Hidden from PDF
+            </span>
+          </div>
+        )}
       </div>
-      <div className="image-controls absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => toggleVisibility(img.id)} className="p-3 bg-black/60 text-white rounded-full">{img.isVisible ? <Eye size={18} /> : <EyeOff size={18} />}</button>
-        <button onClick={() => addText(img.id)} className="p-3 bg-black/60 text-white rounded-full"><Type size={18} /></button>
-        <button onClick={() => removeImage(img.id)} className="p-3 bg-black/60 text-red-400 rounded-full"><Trash2 size={18} /></button>
+
+      {/* Persistent Bottom Bar */}
+      <div className="flex items-center justify-between p-3 bg-accent/20 border-t border-border/50">
+        <div className="flex items-center gap-1">
+          <div {...attributes} {...listeners} className="p-2 text-muted-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded-lg">
+            <GripVertical size={20} />
+          </div>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">
+            Reorder
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => addText(img.id)} 
+            className="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-xl font-bold text-xs hover:bg-primary/20 transition-colors"
+          >
+            <Type size={16} />
+            <span>Text</span>
+          </button>
+          <div className="w-[1px] h-4 bg-border mx-1" />
+          <button 
+             onClick={() => toggleVisibility(img.id)} 
+             className={cn(
+               "p-2 rounded-xl transition-colors",
+               img.isVisible ? "text-muted-foreground hover:bg-accent" : "text-primary bg-primary/10"
+             )}
+          >
+            {img.isVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+          </button>
+          <button 
+            onClick={() => removeImage(img.id)} 
+            className="p-2 text-red-400 hover:bg-red-400/10 rounded-xl transition-colors"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </div>
-      <div {...attributes} {...listeners} className="absolute top-4 left-4 p-3 bg-black/60 text-white rounded-full cursor-grab"><GripVertical size={18} /></div>
     </motion.div>
   );
 }
