@@ -107,10 +107,9 @@ export default function MainApp() {
   };
 
   const toggleVisibility = (id: string) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item)));
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } as CompositionItem : item)));
   };
 
-  // Overlay management for images
   const addTextOverlay = (imageId: string) => {
     const newOverlay: TextOverlay = {
       id: Math.random().toString(36).substr(2, 9),
@@ -121,7 +120,7 @@ export default function MainApp() {
       position: { x: 50, y: 50 },
     };
     setItems((prev) => prev.map((item) => 
-      (item.id === imageId && item.type === 'image') ? { ...item, texts: [...item.texts, newOverlay] } : item
+      (item.id === imageId && item.type === 'image') ? { ...item, texts: [...item.texts, newOverlay] } as ImageData : item
     ));
     setEditingOverlay({ imageId, text: newOverlay });
   };
@@ -131,20 +130,19 @@ export default function MainApp() {
       (item.id === imageId && item.type === 'image') ? { 
         ...item, 
         texts: item.texts.map(t => t.id === textId ? { ...t, ...updates } : t) 
-      } : item
+      } as ImageData : item
     ));
   };
 
   const removeTextOverlay = (imageId: string, textId: string) => {
     setItems((prev) => prev.map((item) => 
-      (item.id === imageId && item.type === 'image') ? { ...item, texts: item.texts.filter(t => t.id !== textId) } : item
+      (item.id === imageId && item.type === 'image') ? { ...item, texts: item.texts.filter(t => t.id !== textId) } as ImageData : item
     ));
     if (editingOverlay?.text.id === textId) setEditingOverlay(null);
   };
 
-  // Text block management
   const updateTextBlock = (id: string, updates: Partial<TextBlock>) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+    setItems((prev) => prev.map((item) => (item.id === id && item.type === 'text') ? { ...item, ...updates } as TextBlock : item));
     if (editingBlock?.id === id) setEditingBlock(prev => prev ? { ...prev, ...updates } : null);
   };
 
@@ -185,7 +183,6 @@ export default function MainApp() {
 
   return (
     <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-6 bg-background">
-      {/* Header */}
       <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md py-4 border-b border-border">
         <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
           PDF Composer
@@ -257,7 +254,6 @@ export default function MainApp() {
         </DndContext>
       </div>
 
-      {/* Overlays Editor */}
       {editingOverlay && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="bg-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
@@ -295,7 +291,6 @@ export default function MainApp() {
         </div>
       )}
 
-      {/* Block Editor */}
       {editingBlock && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="bg-card w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
@@ -379,7 +374,7 @@ function SortableItem({ item, removeItem, toggleVisibility, addTextOverlay, upda
               <div {...attributes} {...listeners} className="p-2 text-muted-foreground cursor-grab active:cursor-grabbing hover:bg-accent rounded-lg">
                 <GripVertical size={20} />
               </div>
-              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Move Message</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Message</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setEditingBlock(item)} className="p-2 text-primary"><Settings size={18} /></button>
