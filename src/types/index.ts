@@ -7,7 +7,9 @@ export interface TextOverlay {
   position: { x: number; y: number };
 }
 
-export interface ImageMessage {
+export interface TextBlock {
+  id: string;
+  type: 'text';
   content: string;
   fontSize: number;
   color: string;
@@ -17,9 +19,11 @@ export interface ImageMessage {
 
 export interface ImageData {
   id: string;
+  type: 'image';
   file: File;
   previewUrl: string;
   isVisible: boolean;
   texts: TextOverlay[];
-  message: ImageMessage;
 }
+
+export type CompositionItem = ImageData | TextBlock;
