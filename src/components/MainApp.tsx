@@ -59,11 +59,29 @@ export default function MainApp() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const compressImage = (file: File, maxWidth: number = 1000, quality: number = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target?.result as string;
+      };
       reader.readAsDataURL(file);
     });
   };
@@ -231,7 +249,7 @@ export default function MainApp() {
       
       const itemHtmlPromises = visibleItems.map(async (item) => {
         if (item.type === 'image') {
-          const dataUrl = await fileToDataUrl(item.file);
+          const dataUrl = await compressImage(item.file);
           const overlays = item.texts.map(text => `
             <div style="position: absolute; left: ${text.position.x}%; top: ${text.position.y}%; transform: translate(-50%, -50%); font-size: ${text.fontSize}px; color: ${text.color}; opacity: ${text.opacity}; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; line-height: 1; z-index: 10; pointer-events: none; width: max-content; max-width: 90%;">
               ${text.content}
