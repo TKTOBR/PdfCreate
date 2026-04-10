@@ -15,7 +15,8 @@ import {
   ChevronDown,
   X,
   GripVertical,
-  Type as TextIcon
+  Type as TextIcon,
+  Globe
 } from "lucide-react";
 import { 
   DndContext, 
@@ -57,6 +58,15 @@ export default function MainApp() {
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -213,6 +223,97 @@ export default function MainApp() {
     }
   };
 
+  const generateHtml = async () => {
+    if (items.length === 0) return;
+    setIsGenerating(true);
+    try {
+      const visibleItems = items.filter(item => item.isVisible);
+      
+      const itemHtmlPromises = visibleItems.map(async (item) => {
+        if (item.type === 'image') {
+          const dataUrl = await fileToDataUrl(item.file);
+          const overlays = item.texts.map(text => `
+            <div style="position: absolute; left: ${text.position.x}%; top: ${text.position.y}%; transform: translate(-50%, -50%); font-size: ${text.fontSize}px; color: ${text.color}; opacity: ${text.opacity}; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; line-height: 1; z-index: 10; pointer-events: none; width: max-content; max-width: 90%;">
+              ${text.content}
+            </div>
+          `).join('');
+          
+          return `
+            <div style="position: relative; overflow: hidden; background: black; width: 100%; display: flex; align-items: center; justify-content: center;">
+              <img src="${dataUrl}" style="width: 100%; height: auto; display: block;" />
+              ${overlays}
+            </div>
+          `;
+        } else {
+          return `
+            <div style="background-color: ${item.backgroundColor}; color: ${item.color}; padding: 16px 24px; min-height: 2rem; display: flex; align-items: center;">
+              <div style="font-size: ${item.fontSize}px; font-weight: 500; line-height: 1.4; white-space: pre-wrap;">${item.content}</div>
+            </div>
+          `;
+        }
+      });
+
+      const itemsHtml = (await Promise.all(itemHtmlPromises)).join('');
+
+      const fullHtml = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composition Export</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #container {
+            width: 100%;
+            max-width: 672px; /* Matching max-w-2xl */
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 4px; /* Matching space-y-1 gap approx */
+        }
+        @media print {
+            body { padding: 0; background-color: white; }
+            #container { box-shadow: none; max-width: none; width: 100%; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        ${itemsHtml}
+    </div>
+</body>
+</html>
+      `;
+
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const serial = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      a.href = url;
+      a.download = `${date}_composition_${serial}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("HTML creation failed.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-6 bg-background">
       {/* Header */}
@@ -229,8 +330,17 @@ export default function MainApp() {
             onClick={generatePdf}
             disabled={items.length === 0 || isGenerating}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
+            title="Export as PDF"
           >
             {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={18} />}
+          </button>
+          <button
+            onClick={generateHtml}
+            disabled={items.length === 0 || isGenerating}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
+            title="Export as HTML"
+          >
+            {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Globe size={18} />}
           </button>
         </div>
         <input type="file" multiple accept="image/jpeg,image/png" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
