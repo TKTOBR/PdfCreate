@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { 
-  Plus, 
-  Trash2, 
-  Download, 
-  Move, 
-  Eye, 
-  EyeOff, 
-  Type, 
-  Settings, 
+import {
+  Plus,
+  Trash2,
+  Download,
+  Move,
+  Eye,
+  EyeOff,
+  Type,
+  Settings,
   Image as ImageIcon,
   ChevronUp,
   ChevronDown,
@@ -18,20 +18,20 @@ import {
   Type as TextIcon,
   Globe
 } from "lucide-react";
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
   useSensors,
   DragEndEvent,
   TouchSensor
 } from "@dnd-kit/core";
-import { 
-  arrayMove, 
-  SortableContext, 
-  sortableKeyboardCoordinates, 
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
 } from "@dnd-kit/sortable";
@@ -105,8 +105,8 @@ export default function MainApp() {
     const newBlock: TextBlock = {
       id: Math.random().toString(36).substr(2, 9),
       type: 'text',
-      content: "Type your message here...",
-      fontSize: 16,
+      content: " ",
+      fontSize: 32,
       color: "#000000",
       backgroundColor: "#ffff00", // Bright Yellow
       isVisible: true,
@@ -153,23 +153,23 @@ export default function MainApp() {
       opacity: 1,
       position: { x: 50, y: 50 },
     };
-    setItems((prev) => prev.map((item) => 
+    setItems((prev) => prev.map((item) =>
       (item.id === imageId && item.type === 'image') ? { ...item, texts: [...item.texts, newOverlay] } as ImageData : item
     ));
     setEditingOverlay({ imageId, text: newOverlay });
   };
 
   const updateTextOverlay = (imageId: string, textId: string, updates: Partial<TextOverlay>) => {
-    setItems((prev) => prev.map((item) => 
-      (item.id === imageId && item.type === 'image') ? { 
-        ...item, 
-        texts: item.texts.map(t => t.id === textId ? { ...t, ...updates } : t) 
+    setItems((prev) => prev.map((item) =>
+      (item.id === imageId && item.type === 'image') ? {
+        ...item,
+        texts: item.texts.map(t => t.id === textId ? { ...t, ...updates } : t)
       } as ImageData : item
     ));
   };
 
   const removeTextOverlay = (imageId: string, textId: string) => {
-    setItems((prev) => prev.map((item) => 
+    setItems((prev) => prev.map((item) =>
       (item.id === imageId && item.type === 'image') ? { ...item, texts: item.texts.filter(t => t.id !== textId) } as ImageData : item
     ));
     if (editingOverlay?.text.id === textId) setEditingOverlay(null);
@@ -210,10 +210,10 @@ export default function MainApp() {
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
+
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      
+
       const imgWidth = pdfWidth;
       const imgHeight = (canvasHeight * pdfWidth) / canvasWidth;
 
@@ -246,7 +246,7 @@ export default function MainApp() {
     setIsGenerating(true);
     try {
       const visibleItems = items.filter(item => item.isVisible);
-      
+
       const itemHtmlPromises = visibleItems.map(async (item) => {
         if (item.type === 'image') {
           const dataUrl = await compressImage(item.file);
@@ -255,7 +255,7 @@ export default function MainApp() {
               ${text.content}
             </div>
           `).join('');
-          
+
           return `
             <div style="position: relative; overflow: hidden; background: black; width: 100%; display: flex; align-items: center; justify-content: center;">
               <img src="${dataUrl}" style="width: 100%; height: auto; display: block;" />
@@ -437,10 +437,10 @@ export default function MainApp() {
 function SortableItem({ item, removeItem, toggleVisibility, addTextOverlay, updateTextOverlay, removeTextOverlay, setEditingOverlay, setEditingBlock }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 1, opacity: isDragging ? 0.5 : 1 };
-  
+
   return (
     <motion.div ref={setNodeRef} style={style} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={cn("relative group bg-white", !item.isVisible && "opacity-40 grayscale")}>
-      
+
       {item.type === 'image' ? (
         <div className="relative overflow-hidden flex flex-col items-center">
           <div id={`item-container-${item.id}`} className="relative w-full flex items-center justify-center bg-black min-h-[100px]">
@@ -452,16 +452,16 @@ function SortableItem({ item, removeItem, toggleVisibility, addTextOverlay, upda
           </div>
           {/* Internal Controls Overlay */}
           <div className="item-controls absolute top-2 right-2 flex gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-             <div {...attributes} {...listeners} className="p-2 bg-black/50 text-white rounded-lg cursor-grab"><GripVertical size={16} /></div>
-             <button onClick={() => addTextOverlay(item.id)} className="p-2 bg-black/50 text-white rounded-lg"><Type size={16} /></button>
-             <button onClick={() => toggleVisibility(item.id)} className="p-2 bg-black/50 text-white rounded-lg">{item.isVisible ? <Eye size={16} /> : <EyeOff size={16} />}</button>
-             <button onClick={() => removeItem(item.id)} className="p-2 bg-red-500/50 text-white rounded-lg"><Trash2 size={16} /></button>
+            <div {...attributes} {...listeners} className="p-2 bg-black/50 text-white rounded-lg cursor-grab"><GripVertical size={16} /></div>
+            <button onClick={() => addTextOverlay(item.id)} className="p-2 bg-black/50 text-white rounded-lg"><Type size={16} /></button>
+            <button onClick={() => toggleVisibility(item.id)} className="p-2 bg-black/50 text-white rounded-lg">{item.isVisible ? <Eye size={16} /> : <EyeOff size={16} />}</button>
+            <button onClick={() => removeItem(item.id)} className="p-2 bg-red-500/50 text-white rounded-lg"><Trash2 size={16} /></button>
           </div>
         </div>
       ) : (
         <div className="relative">
-          <div 
-            id={`item-container-${item.id}`} 
+          <div
+            id={`item-container-${item.id}`}
             className="w-full px-6 py-4 flex items-center min-h-[2rem]"
             style={{ backgroundColor: item.backgroundColor, color: item.color }}
             onClick={() => setEditingBlock(item)}
@@ -470,10 +470,10 @@ function SortableItem({ item, removeItem, toggleVisibility, addTextOverlay, upda
           </div>
           {/* Controls Overlay */}
           <div className="item-controls absolute top-2 right-2 flex gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-             <div {...attributes} {...listeners} className="p-2 bg-black/20 text-black rounded-lg cursor-grab"><GripVertical size={16} /></div>
-             <button onClick={() => setEditingBlock(item)} className="p-2 bg-black/20 text-black rounded-lg"><Settings size={16} /></button>
-             <button onClick={() => toggleVisibility(item.id)} className="p-2 bg-black/20 text-black rounded-lg">{item.isVisible ? <Eye size={16} /> : <EyeOff size={16} />}</button>
-             <button onClick={() => removeItem(item.id)} className="p-2 bg-red-500/20 text-red-500 rounded-lg"><Trash2 size={16} /></button>
+            <div {...attributes} {...listeners} className="p-2 bg-black/20 text-black rounded-lg cursor-grab"><GripVertical size={16} /></div>
+            <button onClick={() => setEditingBlock(item)} className="p-2 bg-black/20 text-black rounded-lg"><Settings size={16} /></button>
+            <button onClick={() => toggleVisibility(item.id)} className="p-2 bg-black/20 text-black rounded-lg">{item.isVisible ? <Eye size={16} /> : <EyeOff size={16} />}</button>
+            <button onClick={() => removeItem(item.id)} className="p-2 bg-red-500/20 text-red-500 rounded-lg"><Trash2 size={16} /></button>
           </div>
         </div>
       )}
