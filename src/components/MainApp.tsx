@@ -106,7 +106,7 @@ export default function MainApp() {
       id: Math.random().toString(36).substr(2, 9),
       type: 'text',
       content: " ",
-      fontSize: 32,
+      fontSize: 24,
       color: "#000000",
       backgroundColor: "#ffff00", // Bright Yellow
       isVisible: true,
